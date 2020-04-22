@@ -1,6 +1,7 @@
 Source: libzstd
-Maintainer: Debian Med Packaging Team <debian-med-packaging@lists.alioth.debian.org>
-Uploaders: Kevin Murray <kdmfoss@gmail.com>,
+Maintainer: Pexip AS <packaging@pexip.com>
+XSBC-Pexip-Original-Maintainer: Debian Med Packaging Team <debian-med-packaging@lists.alioth.debian.org>
+XSBC-Pexip-Original-Uploaders: Kevin Murray <kdmfoss@gmail.com>,
            Olivier Sallou <osallou@debian.org>,
            Alexandre Mestiashvili <mestia@debian.org>
 Section: libs
@@ -15,6 +16,7 @@ Standards-Version: 4.3.0
 Vcs-Browser: https://salsa.debian.org/med-team/libzstd
 Vcs-Git: https://salsa.debian.org/med-team/libzstd.git
 Homepage: https://github.com/facebook/zstd
+XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
 
 Package: libzstd-dev
 Architecture: any
