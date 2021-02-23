@@ -1,3 +1,19 @@
+libzstd (1.3.8+dfsg-3+deb10u2pexip1) pexip; urgency=medium
+
+  * New upstream version
+
+ -- Steve McIntyre <steve.mcintyre@pexip.com>  Tue, 23 Feb 2021 09:47:03 +0000
+
+libzstd (1.3.8+dfsg-3+deb10u2) buster-security; urgency=high
+
+  * Team upload.
+  * The previous fix-file-permissions-on-compression.patch almost closed the
+    window of the race condition, but not completely.  This patch, adapted from
+    upstream, 0017-fix-file-permissions-on-compression.patch, replaces the
+    previous attempt by erasing the umask before opening the destination file.
+    Closes: #982519
+
+ -- Étienne Mollier <etienne.mollier@mailoo.org>  Thu, 18 Feb 2021 12:59:48 +0100
 libzstd (1.3.8+dfsg-3+deb10u1pexip1) pexip; urgency=medium
 
   * New upstream version

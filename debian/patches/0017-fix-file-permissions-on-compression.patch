@@ -1,0 +1,65 @@
+Description: fix race condition allowing attackers to access destination file
+ This commit addresses https://github.com/facebook/zstd/issues/2491.
+ .
+ Note that a downside of this solution is that it is global: `umask()` affects
+ all file creation calls in the process. I believe this is safe since
+ `fileio.c` functions should only ever be used in the zstd binary, and these
+ are (almost) the only files ever created by zstd, and AIUI they're only
+ created in a single thread. So we can get away with messing with global state.
+ .
+ Note that this doesn't change the permissions of files created by `dibio.c`.
+ I'm not sure what those should be...
+Author: W. Felix Handte <w@felixhandte.com>
+Origin: upstream
+Bug: https://github.com/facebook/zstd/issues/2491
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=982519
+Applied-Upstream: commit:a774c5797399040af62db21d8a9b9769e005430e
+Reviewed-by: Étienne Mollier <etienne.mollier@mailoo.org>
+Last-Update: 2021-02-18
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- libzstd.orig/programs/fileio.c
++++ libzstd/programs/fileio.c
+@@ -481,7 +481,9 @@
+             FIO_remove(dstFileName);
+     }   }
+ 
+-    {   FILE* const f = fopen( dstFileName, "wb" );
++    {   const int old_umask = UTIL_umask(0177); /* u-x,go-rwx */
++        FILE* const f = fopen( dstFileName, "wb" );
++        UTIL_umask(old_umask);
+         if (f == NULL)
+             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
+         return f;
+--- libzstd.orig/programs/util.c
++++ libzstd/programs/util.c
+@@ -51,6 +51,15 @@
+     return 1;
+ }
+ 
++int UTIL_umask(int mode) {
++#if PLATFORM_POSIX_VERSION > 0
++    return umask(mode);
++#else
++    /* do nothing, fake return value */
++    return mode;
++#endif
++}
++
+ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+ {
+     int res = 0;
+--- libzstd.orig/programs/util.h
++++ libzstd/programs/util.h
+@@ -181,6 +181,11 @@
+ 
+ U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+ 
++/**
++ * Wraps umask(). Does nothing when the platform doesn't have that concept.
++ */
++int UTIL_umask(int mode);
++
+ /*
+  * A modified version of realloc().
+  * If UTIL_realloc() fails the original block is freed.
