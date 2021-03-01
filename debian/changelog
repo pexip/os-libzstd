@@ -1,30 +1,161 @@
-libzstd (1.3.8+dfsg-3+deb10u2) buster-security; urgency=high
+libzstd (1.4.8+dfsg-2.1) unstable; urgency=medium
 
-  * Team upload.
-  * The previous fix-file-permissions-on-compression.patch almost closed the
-    window of the race condition, but not completely.  This patch, adapted from
-    upstream, 0017-fix-file-permissions-on-compression.patch, replaces the
-    previous attempt by erasing the umask before opening the destination file.
-    Closes: #982519
+  * Non-maintainer upload.
+  * Drop the symbols file: the symbols in the library aren’t all intended
+    for public consumption, but they can’t be hidden (yet) either, see
+    https://github.com/facebook/zstd/pull/2501 for the discussion. We’ll
+    rely on the shlibs file for now, with a relaxed version (1.4.0, as
+    discussed with upstream). Closes: #969597.
 
- -- Étienne Mollier <etienne.mollier@mailoo.org>  Thu, 18 Feb 2021 12:59:48 +0100
+ -- Stephen Kitt <skitt@debian.org>  Mon, 01 Mar 2021 18:23:52 +0100
 
-libzstd (1.3.8+dfsg-3+deb10u1) buster-security; urgency=high
+libzstd (1.4.8+dfsg-2) unstable; urgency=high
 
   * Team upload.
   * When a file with restricted permissions is compressed, the resulting file
-    inherits the umask of the user for the time of the compression.  This will
-    usually lead to surprising and too relaxed permissions.  This update adds
-    fix-file-permissions-on-compression.patch to make sure the compressed file
-    is not group or world readable for the duration of the compression.
-    Closes: #981404
+    inherits the umask of the user for the time of the compression.  This was
+    partially mitigated previously by running a change of permissions after a
+    `chmod`, but left a small but exploitable window just after the `fopen`.
+    This update adds 0018-fix-file-permissions-on-compression.patch to make
+    sure the compressed file is not group nor world readable for the _entire_
+    duration of the compression.
+    Closes: #982519
 
- -- Étienne Mollier <etienne.mollier@mailoo.org>  Mon, 01 Feb 2021 20:36:53 +0100
+ -- Étienne Mollier <etienne.mollier@mailoo.org>  Thu, 18 Feb 2021 09:52:53 +0100
+
+libzstd (1.4.8+dfsg-1) unstable; urgency=medium
+
+  * New upstream version 1.4.8+dfsg, Closes: #977829
+  * Refresh and remove patch applied by upstream
+  * Update d/libzstd1.symbols, getSequences() got renamed
+    to generateSequences(), no reverse deps use ZSTD_getSequences
+  * d/rules, remove export DEB_CFLAGS_MAINT_APPEND = -fno-strict-aliasing,
+    fixed by upstream, Closes: #957487
+    Call dh_makeshlibs with -V 'libzstd1 (>= 1.4.8)', new public symbols
+  * d/copyright, drop contrib/linux-kernel/fs/squashfs/*
+  * d/control: bump Policy to 4.5.1
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Fri, 25 Dec 2020 19:28:35 +0100
+
+libzstd (1.4.5+dfsg-4) unstable; urgency=medium
+
+  [ Andreas Tille ]
+  * Team upload.
+  * debhelper-compat 13 (routine-update)
+
+  [ Sudip Mukherjee ]
+  * Disable strict-aliasing to work around bug #957487
+    Intentionally not closing bug but decreasing severity for the moment.
+    The bug should be closed by a proper upstream fix and
+    strict-aliasing should be re-enabled.
+
+ -- Andreas Tille <tille@debian.org>  Fri, 07 Aug 2020 20:47:29 +0200
+
+libzstd (1.4.5+dfsg-3) unstable; urgency=medium
+
+  [ Paul Menzel ]
+  * debian/changelog: Fix typo in 1.4.5+dfsg-2 changelog
+
+  [ Alexandre Mestiashvili ]
+  * Add patch fixing FTBFS on Alpha, Closes: #962676
+    thanks to Helmut Grohne <helmut@subdivi.de>
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Mon, 29 Jun 2020 16:10:31 +0200
+
+libzstd (1.4.5+dfsg-2) unstable; urgency=medium
+
+  * Drop ZSTD_LEGACY_MULTITHREADED_API, since nothing in Debian seems to use it
+  * Fix FTCBFS: Don't build the shared library during dh_auto_install,
+    Closes: #962367, thanks to Helmut Grohne <helmut@subdivi.de>
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Sun, 07 Jun 2020 09:31:18 +0200
+
+libzstd (1.4.5+dfsg-1) unstable; urgency=medium
+
+  * New upstream version 1.4.5+dfsg
+  * Refresh patches, remove 0019-blhc-workarounds.patch from series
+  * Update symbols file, add ZDICT_getDictHeaderSize and remove all
+    ZSTDMT_* symbols, also remove renamed ZSTD_CCtxParam_getParameter and
+    ZSTD_CCtxParam_setParameter, no reverse dependencies use any of the
+    removed symbols
+  * Remove 0018-Alias-renamed-API-symbols.patch since no rdeps use the old
+    symbols
+  * Add patch fixing spelling typos
+  * d/rules: call dh_makeshlibs with -V 'libzstd1 (>= 1.4.5)', since this
+    version introduces new public symbols
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Fri, 05 Jun 2020 10:47:12 +0200
+
+libzstd (1.4.4+dfsg-3) unstable; urgency=medium
+
+  * Team upload.
+  * Source only upload.
+
+ -- Michael R. Crusoe <michael.crusoe@gmail.com>  Thu, 13 Feb 2020 10:40:13 +0100
+
+libzstd (1.4.4+dfsg-2) unstable; urgency=medium
+
+  * Team upload.
+  * Install all the man pages.
+  * Standards-Version: 4.5.0 (routine-update)
+  * debhelper-compat 12 (routine-update)
+
+ -- Michael R. Crusoe <michael.crusoe@gmail.com>  Thu, 13 Feb 2020 09:10:22 +0100
+
+libzstd (1.4.4+dfsg-1) unstable; urgency=medium
+
+  [ Justin Aplin ]
+  * New upstream version 1.4.4+dfsg
+  * Refresh patches
+  * Call Salsa CI with variable DB_BUILD_PARAM: '-v1.1.2-1', since this is the
+    oldest version in active repositories
+  * Add Rules-Requires-Root: binary-targets to debian/control to comply with
+    current DPM
+  * Bump Standards-Version to 4.4.1, changes noted above
+  * Update symbols file for libzstd1
+  * Call dh_makeshlibs with -V 'libzstd1 (>= 1.4.4)', since this version
+    introduced new public symbols
+  * Add an entry in debian/source/lintian-overrides to prevent libzstd1's
+    Section entry from triggering binary-control-field-duplicates-source,
+    since this field is necessary for the build
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Fri, 15 Nov 2019 17:15:40 +0100
+
+libzstd (1.4.3+dfsg-1) unstable; urgency=medium
+
+  [ Alexandre Mestiashvili ]
+  * Fix a typo causing test failures on mips(el) architectures in
+    d/patches/0013-skip-memory-greedy-tests.patch
+  * Remove circle.yml from Files-Excluded section in d/copyright
+  * New upstream version 1.4.3+dfsg
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Tue, 20 Aug 2019 13:33:51 +0200
+
+libzstd (1.4.2+dfsg-1) unstable; urgency=medium
+
+  [ Justin Aplin ]
+  * New upstream version 1.4.2+dfsg
+  * Refresh and drop applied by upstream patches
+  * Add patch aliasing two renamed but unchanged symbols to maintain backwards
+    compatibility
+  * Build with ZSTD_LEGACY_MULTITHREADED_API=1 to maintain backwards
+    compatibility
+  * Update symbols file for libzstd1
+  * Call dh_makeshlibs with -V 'libzstd1 (>= 1.4.0)', since this version
+    introduced new public symbols
+  * Bump debhelper compat level to 12.
+  * Bump Standards-Version to 4.4.0, no changes needed.
+  * Salsa-CI integration
+
+  [ Alexandre Mestiashvili ]
+  * Add .cirrus.yml to Files-Excluded list in d/copyright
+
+ -- Alexandre Mestiashvili <mestia@debian.org>  Mon, 19 Aug 2019 15:14:31 +0200
 
 libzstd (1.3.8+dfsg-3) unstable; urgency=medium
 
   * Add patch fixing zstdgrep exit code when operating on files
-    Closes: #918390
+    Closes: #918390, thanks to Jörg-Volker Peetz <jvpeetz@web.de>
 
  -- Alexandre Mestiashvili <mestia@debian.org>  Sat, 05 Jan 2019 23:42:20 +0100
 
@@ -89,7 +220,8 @@ libzstd (1.3.4+dfsg-3) unstable; urgency=medium
 
 libzstd (1.3.4+dfsg-2) unstable; urgency=medium
 
-  * Add liblzma-dev and liblz4-dev to build-depends to enable xz and lz4 support
+  * Add liblzma-dev and liblz4-dev to build-depends to enable xz and lz4
+    support
   * Patch tests to avoid FTBFS on mips(el) architectures
   * Use help2man for pzstd man page, drop patches providing obsolete man pages
   * Update zstd.lintian-overrides, add more binaries without man pages
@@ -154,9 +286,10 @@ libzstd (1.3.3+dfsg-1) unstable; urgency=medium
   * Update File-Excluded list in d/copyright
   * New upstream version 1.3.3+dfsg, Closes: #883816
   * Refresh patches
-  * Add zlib1g-dev to Build-Deps to enable gzip support in zstd, Closes: #883827
+  * Add zlib1g-dev to Build-Deps to enable gzip support in zstd,
+    Closes: #883827
 
- -- Alexandre Mestiashvili <alex@biotec.tu-dresden.de>  Thu, 21 Dec 2017 14:25:26 +0100
+ -- Alexandre Mestiashvili <mestia@debian.org>  Thu, 21 Dec 2017 14:25:26 +0100
 
 libzstd (1.3.2+dfsg2-2) unstable; urgency=medium
 
@@ -185,7 +318,7 @@ libzstd (1.3.2+dfsg2-1) unstable; urgency=medium
   * Add override for manpage-has-errors-from-man lintian warning
   * Install examples with libzstd-dev
 
- -- Alexandre Mestiashvili <alex@biotec.tu-dresden.de>  Fri, 01 Dec 2017 17:18:39 +0100
+ -- Alexandre Mestiashvili <mestia@debian.org>  Fri, 01 Dec 2017 17:18:39 +0100
 
 libzstd (1.3.2+dfsg1-1) unstable; urgency=medium
 
@@ -206,7 +339,7 @@ libzstd (1.3.2+dfsg1-1) unstable; urgency=medium
   [ Andreas Tille ]
   * d/watch: Fix version mangling
 
- -- Alexandre Mestiashvili <alex@biotec.tu-dresden.de>  Thu, 30 Nov 2017 23:32:41 +0100
+ -- Alexandre Mestiashvili <mestia@debian.org>  Thu, 30 Nov 2017 23:32:41 +0100
 
 libzstd (1.3.2+dfsg-1) unstable; urgency=medium
 

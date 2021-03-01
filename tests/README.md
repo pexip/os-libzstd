@@ -20,8 +20,50 @@ This script creates `versionsTest` directory to which zstd repository is cloned.
 Then all tagged (released) versions of zstd are compiled.
 In the following step interoperability between zstd versions is checked.
 
+#### `automated-benchmarking.py` - script for benchmarking zstd prs to dev
+
+This script benchmarks facebook:dev and changes from pull requests made to zstd and compares
+them against facebook:dev to detect regressions. This script currently runs on a dedicated
+desktop machine for every pull request that is made to the zstd repo but can also
+be run on any machine via the command line interface.
+
+There are three modes of usage for this script: fastmode will just run a minimal single
+build comparison (between facebook:dev and facebook:release), onetime will pull all the current
+pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
+will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
+
+```
+Example usage: python automated_benchmarking.py
+```
+
+```
+usage: automated_benchmarking.py [-h] [--directory DIRECTORY]
+                                 [--levels LEVELS] [--iterations ITERATIONS]
+                                 [--emails EMAILS] [--frequency FREQUENCY]
+                                 [--mode MODE] [--dict DICT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --directory DIRECTORY
+                        directory with files to benchmark
+  --levels LEVELS       levels to test eg ('1,2,3')
+  --iterations ITERATIONS
+                        number of benchmark iterations to run
+  --emails EMAILS       email addresses of people who will be alerted upon
+                        regression. Only for continuous mode
+  --frequency FREQUENCY
+                        specifies the number of seconds to wait before each
+                        successive check for new PRs in continuous mode
+  --mode MODE           'fastmode', 'onetime', 'current', or 'continuous' (see
+                        README.md for details)
+  --dict DICT           filename of dictionary to use (when set, this
+                        dictioanry will be used to compress the files provided
+                        inside --directory)
+```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits
+
+DEPRECATED
 
 This script creates `speedTest` directory to which zstd repository is cloned.
 Then it compiles all branches of zstd and performs a speed benchmark for a given list of files (the `testFileNames` parameter).
@@ -72,7 +114,7 @@ Command line tool to generate test .zst files.
 
 This tool will generate .zst files with checksums,
 as well as optionally output the corresponding correct uncompressed data for
-extra verfication.
+extra verification.
 
 Example:
 ```
@@ -123,7 +165,7 @@ Full list of arguments
                     Higher values will make optimizer run longer, more chances to find better solution.
     memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size.
                     Setting memLog = 0 turns off memoization
- --display=   : specifiy which parameters are included in the output
+ --display=   : specify which parameters are included in the output
                     can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters
                     (Default: display all params available)
  -P#          : generated sample compressibility (when no file is provided)

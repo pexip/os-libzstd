@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -87,12 +87,12 @@ extern "C" {
  * The following list of build macros tries to "guess" if target OS is likely unix-like, and therefore can #include <unistd.h>
  */
 #  elif !defined(_WIN32) \
-     && (defined(__unix__) || defined(__unix) \
-     || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__))
+     && ( defined(__unix__) || defined(__unix) \
+       || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
 
-#    if defined(__linux__) || defined(__linux)
+#    if defined(__linux__) || defined(__linux) || defined(__CYGWIN__)
 #      ifndef _POSIX_C_SOURCE
-#        define _POSIX_C_SOURCE 200112L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
+#        define _POSIX_C_SOURCE 200809L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #      endif
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */
@@ -102,22 +102,38 @@ extern "C" {
 #      define PLATFORM_POSIX_VERSION 1
 #    endif
 
+#    ifdef __UCLIBC__
+#     ifndef __USE_MISC
+#      define __USE_MISC /* enable st_mtim on uclibc */
+#     endif
+#    endif
+
 #  else  /* non-unix target platform (like Windows) */
 #    define PLATFORM_POSIX_VERSION 0
 #  endif
 
 #endif   /* PLATFORM_POSIX_VERSION */
 
+
+#if PLATFORM_POSIX_VERSION > 1
+   /* glibc < 2.26 may not expose struct timespec def without this.
+    * See issue #1920. */
+#  ifndef _ATFILE_SOURCE
+#    define _ATFILE_SOURCE
+#  endif
+#endif
+
+
 /*-*********************************************
 *  Detect if isatty() and fileno() are available
 ************************************************/
 #if (defined(__linux__) && (PLATFORM_POSIX_VERSION > 1)) \
  || (PLATFORM_POSIX_VERSION >= 200112L) \
- || defined(__DJGPP__) \
- || defined(__MSYS__)
+ || defined(__DJGPP__)
 #  include <unistd.h>   /* isatty */
+#  include <stdio.h>    /* fileno */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
-#elif defined(MSDOS) || defined(OS2) || defined(__CYGWIN__)
+#elif defined(MSDOS) || defined(OS2)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
 #elif defined(WIN32) || defined(_WIN32)

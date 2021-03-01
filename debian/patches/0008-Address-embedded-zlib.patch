@@ -11,27 +11,27 @@ Author: Sascha Steinbiss <satta@debian.org>
  EXAMPLE_PATH = examples
  PROGRAMS_PATH = ../programs
  TEST_FILE = ../doc/zstd_compression_format.md
-@@ -70,16 +70,16 @@
+@@ -79,16 +79,16 @@
  #.c.o:
- #	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+ #	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
  
--minigzip: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
-+minigzip: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
+-minigzip: $(EXAMPLE_PATH)/minigzip.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
++minigzip: $(EXAMPLE_PATH)/minigzip.o zstd_zlibwrapper.o $(ZSTDLIBRARY)
  	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
  
--minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
-+minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+-minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
++minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
  	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
  
--example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
-+example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
+-example: $(EXAMPLE_PATH)/example.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
++example: $(EXAMPLE_PATH)/example.o zstd_zlibwrapper.o $(ZSTDLIBRARY)
  	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
  
--example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
-+example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+-example_zstd: $(EXAMPLE_PATH)/example.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
++example_zstd: $(EXAMPLE_PATH)/example.o zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
  	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
  
- fitblk: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
+ fitblk: $(EXAMPLE_PATH)/fitblk.o zstd_zlibwrapper.o $(ZSTDLIBRARY)
 --- libzstd.orig/zlibWrapper/examples/example.c
 +++ libzstd/zlibWrapper/examples/example.c
 @@ -27,7 +27,7 @@

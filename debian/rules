@@ -26,6 +26,7 @@ override_dh_auto_clean:
 
 override_dh_auto_build:
 	dh_auto_build
+	dh_auto_build --sourcedirectory=lib -- all libzstd.pc libzstd
 	dh_auto_build --sourcedirectory=contrib/pzstd/ -- pzstd
 
 override_dh_install:
@@ -41,10 +42,10 @@ override_dh_install:
 	dh_install
 
 override_dh_makeshlibs:
-	dh_makeshlibs -plibzstd1 -V'libzstd1 (>= 1.3.8)' --add-udeb=libzstd1-udeb
+	dh_makeshlibs -plibzstd1 -V'libzstd1 (>= 1.4.0)' --add-udeb=libzstd1-udeb
 
 override_dh_installman:
 	dh_installman
-	mkdir -p $(mandir)
+	cp $(mandir)/zstd.1 $(mandir)/zstdmt.1
 	$(HELP2MAN) --name='parallelised Zstandard compression, al la pigz' contrib/pzstd/pzstd \
 	| perl -pe 's/(\(de\)compression\s\(default:)(\d+)(\))/$$1 All$$3/g' >$(mandir)/pzstd.1

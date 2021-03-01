@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -93,9 +93,9 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
     int const cLevel = h32 % maxClevel;
 
     /* Set parameters */
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_compressionLevel, cLevel) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_nbWorkers, 2) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_overlapLog, 5) );
+    CHECK_Z( ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_compressionLevel, cLevel) );
+    CHECK_Z( ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_nbWorkers, 2) );
+    CHECK_Z( ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_overlapLog, 5) );
 
 
     /* Apply parameters */
