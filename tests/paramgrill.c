@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -19,6 +19,7 @@
 #include <math.h>      /* log */
 #include <assert.h>
 
+#include "timefn.h"    /* SEC_TO_MICRO, UTIL_time_t, UTIL_clockSpanMicro, UTIL_clockSpanNano, UTIL_getTime */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
 #include "zstd.h"
@@ -141,7 +142,7 @@ static const char* g_shortParamNames[NUM_PARAMS] =
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
 static U32 rangeMap(varInds_t param, int ind)
 {
-    ind = MAX(MIN(ind, (int)rangetable[param] - 1), 0);
+    U32 const uind = (U32)MAX(MIN(ind, (int)rangetable[param] - 1), 0);
     switch(param) {
         case wlog_ind: /* using default: triggers -Wswitch-enum */
         case clog_ind:
@@ -149,11 +150,11 @@ static U32 rangeMap(varInds_t param, int ind)
         case slog_ind:
         case mml_ind:
         case strt_ind:
-            return mintable[param] + ind;
+            return mintable[param] + uind;
         case tlen_ind:
-            return tlen_table[ind];
+            return tlen_table[uind];
         case fadt_ind: /* 0, 1, 2 -> -1, 0, 1 */
-            return ind - 1;
+            return uind - 1;
         case NUM_PARAMS:
         default:;
     }
@@ -173,7 +174,7 @@ static int invRangeMap(varInds_t param, U32 value)
         case slog_ind:
         case mml_ind:
         case strt_ind:
-            return value - mintable[param];
+            return (int)(value - mintable[param]);
         case tlen_ind: /* bin search */
         {
             int lo = 0;
@@ -461,8 +462,8 @@ static paramValues_t emptyParams(void)
 static winnerInfo_t initWinnerInfo(const paramValues_t p)
 {
     winnerInfo_t w1;
-    w1.result.cSpeed = 0.;
-    w1.result.dSpeed = 0.;
+    w1.result.cSpeed = 0;
+    w1.result.dSpeed = 0;
     w1.result.cMem = (size_t)-1;
     w1.result.cSize = (size_t)-1;
     w1.params = p;
@@ -493,13 +494,15 @@ static void
 paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbChanges)
 {
     paramValues_t p;
-    U32 validated = 0;
+    int validated = 0;
     while (!validated) {
         U32 i;
         p = *ptr;
         for (i = 0 ; i < nbChanges ; i++) {
             const U32 changeID = (U32)FUZ_rand(&g_rand) % (mtAll[p.vals[strt_ind]].varLen << 1);
-            paramVaryOnce(mtAll[p.vals[strt_ind]].varArray[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
+            paramVaryOnce(mtAll[p.vals[strt_ind]].varArray[changeID >> 1],
+                          (int)((changeID & 1) << 1) - 1,
+                          &p);
         }
         validated = paramValid(p);
     }
@@ -511,7 +514,7 @@ static paramValues_t randomParams(void)
 {
     varInds_t v; paramValues_t p;
     for(v = 0; v < NUM_PARAMS; v++) {
-        p.vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
+        p.vals[v] = rangeMap(v, (int)(FUZ_rand(&g_rand) % rangetable[v]));
     }
     return p;
 }
@@ -578,7 +581,7 @@ resultScore(const BMK_benchResult_t res, const size_t srcSize, const constraint_
 static double
 resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResult_t lvlRes)
 {
-    double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
+    double normalizedCSpeedGain1 = ((double)result1.cSpeed / lvlRes.cSpeed) - 1;
     double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
     if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
         return 0.0;
@@ -606,8 +609,8 @@ compareResultLT(const BMK_benchResult_t result1, const BMK_benchResult_t result2
 
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= ((double)g_strictness) / 100;
-    target.dSpeed *= ((double)g_strictness) / 100;
+    target.cSpeed = (target.cSpeed * g_strictness) / 100;
+    target.dSpeed = (target.dSpeed * g_strictness) / 100;
     return target;
 }
 
@@ -1130,7 +1133,7 @@ typedef struct {
 } contexts_t;
 
 static void freeNonSrcBuffers(const buffers_t b) {
-    free(b.srcPtrs);
+    free((void*)b.srcPtrs);
     free(b.srcSizes);
 
     if(b.dstPtrs != NULL) {
@@ -1232,12 +1235,12 @@ static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, const size
     return 0;
 }
 
-/* allocates buffer's arguments. returns success / failuere */
+/* allocates buffer's arguments. returns success / failure */
 static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable,
                           size_t nbFiles) {
     size_t pos = 0;
     size_t n;
-    size_t totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
+    size_t totalSizeToLoad = (size_t)UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
     size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
     size_t* fileSizes = calloc(sizeof(size_t), nbFiles);
     void* srcBuffer = NULL;
@@ -1322,7 +1325,7 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
     }
     {   U64 const dictFileSize = UTIL_getFileSize(dictFileName);
         assert(dictFileSize != UTIL_FILESIZE_UNKNOWN);
-        ctx->dictSize = dictFileSize;
+        ctx->dictSize = (size_t)dictFileSize;
         assert((U64)ctx->dictSize == dictFileSize); /* check overflow */
     }
     ctx->dictBuffer = malloc(ctx->dictSize);
@@ -1489,7 +1492,7 @@ createMemoTableArray(const paramValues_t p,
 
         if(memoTableLog != PARAM_UNSET && mtl > (1ULL << memoTableLog)) { /* use hash table */ /* provide some option to only use hash tables? */
             mtAll[i].tableType = xxhashMap;
-            mtl = (1ULL << memoTableLog);
+            mtl = ((size_t)1 << memoTableLog);
         }
 
         mtAll[i].table = (BYTE*)calloc(sizeof(BYTE), mtl);
@@ -1505,7 +1508,7 @@ createMemoTableArray(const paramValues_t p,
 }
 
 /* Sets pc to random unmeasured set of parameters */
-/* specifiy strategy */
+/* specify strategy */
 static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTableArray, const ZSTD_strategy st)
 {
     size_t j;
@@ -1570,7 +1573,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     display_params_tested(*comprParams);
     memset(&bResult, 0, sizeof(bResult));
 
-    /* warmimg up memory */
+    /* warming up memory */
     for (i = 0; i < buf.nbBlocks; i++) {
         if (mode != BMK_decodeOnly) {
             RDG_genBuffer(dstPtrs[i], dstCapacities[i], 0.10, 0.50, 1);
@@ -1638,7 +1641,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
                 return bOut;
             }
             {   BMK_runTime_t const rResult = BMK_extract_runTime(cOutcome);
-                bResult.cSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
+                bResult.cSpeed = (unsigned long long)((double)srcSize * TIMELOOP_NANOSEC / rResult.nanoSecPerRun);
                 bResult.cSize = rResult.sumOfReturn;
             }
             compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
@@ -1656,7 +1659,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
                 return bOut;
             }
             {   BMK_runTime_t const rResult = BMK_extract_runTime(dOutcome);
-                bResult.dSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
+                bResult.dSpeed = (unsigned long long)((double)srcSize * TIMELOOP_NANOSEC / rResult.nanoSecPerRun);
             }
             decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
         }
@@ -1666,7 +1669,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     }
 
    /* Bench */
-    bResult.cMem = (1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
+    bResult.cMem = ((size_t)1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
 
     {   BMK_benchOutcome_t bOut;
         bOut.tag = 0;
@@ -1734,8 +1737,8 @@ static int allBench(BMK_benchResult_t* resultPtr,
 
     /* optimistic assumption of benchres */
     {   BMK_benchResult_t resultMax = benchres;
-        resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
-        resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
+        resultMax.cSpeed = (unsigned long long)(resultMax.cSpeed * uncertaintyConstantC * VARIANCE);
+        resultMax.dSpeed = (unsigned long long)(resultMax.dSpeed * uncertaintyConstantD * VARIANCE);
 
         /* disregard infeasible results in feas mode */
         /* disregard if resultMax < winner in infeas mode */
@@ -1801,7 +1804,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     assert(NB_LEVELS_TRACKED >= ZSTD_maxCLevel());
     memset(g_level_constraint, 0, sizeof(g_level_constraint));
     g_level_constraint[1].cSpeed_min = bytePerSec_level1;
-    g_level_constraint[1].dSpeed_min = 0.;
+    g_level_constraint[1].dSpeed_min = 0;
     g_level_constraint[1].windowLog_max = 19;
     g_level_constraint[1].strategy_max = ZSTD_fast;
 
@@ -1809,7 +1812,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     {   int l;
         for (l=2; l<=NB_LEVELS_TRACKED; l++) {
             g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
-            g_level_constraint[l].dSpeed_min = 0.;
+            g_level_constraint[l].dSpeed_min = 0;
             g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
             g_level_constraint[l].strategy_max = ZSTD_STRATEGY_MAX;
     }   }
@@ -1834,7 +1837,7 @@ static int BMK_seed(winnerInfo_t* winners,
             continue;   /* not fast enough for this level */
         if (params.vals[wlog_ind] > g_level_constraint[cLevel].windowLog_max)
             continue;   /* too much memory for this level */
-        if (params.vals[strt_ind] > g_level_constraint[cLevel].strategy_max)
+        if (params.vals[strt_ind] > (U32)g_level_constraint[cLevel].strategy_max)
             continue;   /* forbidden strategy for this level */
         if (winners[cLevel].result.cSize==0) {
             /* first solution for this cLevel */
@@ -1856,16 +1859,16 @@ static int BMK_seed(winnerInfo_t* winners,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
-            size_t O_CMemUsed = (1 << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
+            size_t W_CMemUsed = ((size_t)1 << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
+            size_t O_CMemUsed = ((size_t)1 << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
-            double W_CSpeed_note = W_ratioNote * ( 30 + 10*cLevel) + log(testResult.cSpeed);
-            double O_CSpeed_note = O_ratioNote * ( 30 + 10*cLevel) + log(winners[cLevel].result.cSpeed);
+            double W_CSpeed_note = W_ratioNote * (double)( 30 + 10*cLevel) + log(testResult.cSpeed);
+            double O_CSpeed_note = O_ratioNote * (double)( 30 + 10*cLevel) + log(winners[cLevel].result.cSpeed);
 
-            double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log(testResult.dSpeed);
-            double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log(winners[cLevel].result.dSpeed);
+            double W_DSpeed_note = W_ratioNote * (double)( 20 + 2*cLevel) + log(testResult.dSpeed);
+            double O_DSpeed_note = O_ratioNote * (double)( 20 + 2*cLevel) + log(winners[cLevel].result.dSpeed);
 
             if (W_DMemUsed_note < O_DMemUsed_note) {
                 /* uses too much Decompression memory for too little benefit */
@@ -1989,7 +1992,7 @@ BMK_selectRandomStart( FILE* f,
 
 /* BMK_generate_cLevelTable() :
  * test a large number of configurations
- * and distribute them accross compression levels according to speed conditions.
+ * and distribute them across compression levels according to speed conditions.
  * display and save all intermediate results into rfName = "grillResults.txt".
  * the function automatically stops after g_timeLimit_s.
  * this function cannot error, it directly exit() in case of problem.
@@ -2199,7 +2202,9 @@ static winnerInfo_t climbOnce(const constraint_t target,
                 for (offset = -1; offset <= 1; offset += 2) {
                     CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
-                    paramVaryOnce(mtAll[cparam.vals[strt_ind]].varArray[i], offset, &candidateInfo.params);
+                    paramVaryOnce(mtAll[cparam.vals[strt_ind]].varArray[i],
+                                  offset,
+                                  &candidateInfo.params);
 
                     if(paramValid(candidateInfo.params)) {
                         int res;
@@ -2222,7 +2227,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
             }
 
             for (dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
-                for (i = 0; i < (1 << varLen) / varLen + 2; i++) {
+                for (i = 0; i < (1ULL << varLen) / varLen + 2; i++) {
                     int res;
                     CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
@@ -2265,7 +2270,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
 /* Optimizes for a fixed strategy */
 
-/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visitied)
+/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visited)
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
    allocate memoTable here.
  */
@@ -2351,7 +2356,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy)
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
 
-static int g_maxTries = 5;
+static unsigned g_maxTries = 5;
 #define TRY_DECAY 1
 
 static int
@@ -2424,9 +2429,9 @@ optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles,
         }
 
         g_lvltarget = winner.result;
-        g_lvltarget.cSpeed *= ((double)g_strictness) / 100;
-        g_lvltarget.dSpeed *= ((double)g_strictness) / 100;
-        g_lvltarget.cSize /= ((double)g_strictness) / 100;
+        g_lvltarget.cSpeed = (g_lvltarget.cSpeed * g_strictness) / 100;
+        g_lvltarget.dSpeed = (g_lvltarget.dSpeed * g_strictness) / 100;
+        g_lvltarget.cSize = (g_lvltarget.cSize * 100) / g_strictness;
 
         target.cSpeed = (U32)g_lvltarget.cSpeed;
         target.dSpeed = (U32)g_lvltarget.dSpeed;
@@ -2561,7 +2566,7 @@ _cleanUp:
  * @return 0 and doesn't modify *stringPtr otherwise.
  * from zstdcli.c
  */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+static int longCommandWArg(const char** stringPtr, const char* longCommand)
 {
     size_t const comSize = strlen(longCommand);
     int const result = !strncmp(*stringPtr, longCommand, comSize);
@@ -2588,7 +2593,10 @@ static unsigned readU32FromChar(const char** stringPtr)
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
         unsigned const max = (((unsigned)(-1)) / 10) - 1;
         if (result > max) errorOut(errorMsg);
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+        result *= 10;
+        assert(**stringPtr >= '0');
+        result += (unsigned)(**stringPtr - '0');
+        (*stringPtr)++ ;
     }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
         unsigned const maxK = ((unsigned)(-1)) >> 10;
@@ -2726,7 +2734,7 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 PARSE_SUB_ARGS("maxTries=", "tries=", g_maxTries);
                 PARSE_SUB_ARGS("memoLimitLog=", "memLog=", memoTableLog);
-                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevelOpt = readU32FromChar(&argument); g_optmode = 1; if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevelOpt = (int)readU32FromChar(&argument); g_optmode = 1; if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "speedForRatio=") || longCommandWArg(&argument, "speedRatio=")) { g_ratioMultiplier = readDoubleFromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
 
                 DISPLAY("invalid optimization parameter \n");
@@ -2743,7 +2751,7 @@ int main(int argc, const char** argv)
             g_singleRun = 1;
             for ( ; ;) {
                 if(parse_params(&argument, &g_params)) { if(argument[0] == ',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevelRun = readU32FromChar(&argument); g_params = emptyParams(); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevelRun = (int)readU32FromChar(&argument); g_params = emptyParams(); if (argument[0]==',') { argument++; continue; } else break; }
 
                 DISPLAY("invalid compression parameter \n");
                 return 1;
@@ -2855,7 +2863,7 @@ int main(int argc, const char** argv)
                             continue;
                         case 'L':
                             {   argument++;
-                                cLevelRun = readU32FromChar(&argument);
+                                cLevelRun = (int)readU32FromChar(&argument);
                                 g_params = emptyParams();
                                 continue;
                             }
@@ -2944,7 +2952,8 @@ int main(int argc, const char** argv)
             }
         } else {
             if (g_optimizer) {
-                result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget, cLevelOpt, cLevelRun, memoTableLog);
+                assert(filenamesStart < argc);
+                result = optimizeForSize(argv+filenamesStart, (size_t)(argc-filenamesStart), dictFileName, target, paramTarget, cLevelOpt, cLevelRun, memoTableLog);
             } else {
                 result = benchFiles(argv+filenamesStart, argc-filenamesStart, dictFileName, cLevelRun);
             }
