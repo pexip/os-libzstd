@@ -16,7 +16,7 @@ Standards-Version: 4.3.0
 Vcs-Browser: https://salsa.debian.org/med-team/libzstd
 Vcs-Git: https://salsa.debian.org/med-team/libzstd.git
 Homepage: https://github.com/facebook/zstd
-XS-Pexip-Upstream: http://ftp.debian.org/debian/ buster
+XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
 
 Package: libzstd-dev
 Architecture: any
