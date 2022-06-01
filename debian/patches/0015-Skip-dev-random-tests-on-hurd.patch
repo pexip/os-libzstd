@@ -6,22 +6,31 @@ Description: Skip test failing on GNU/Hurd when writing on /dev/zero or
 From: Alex Mestiashvili <mestia@debian.org>
 --- libzstd.orig/tests/playTests.sh
 +++ libzstd/tests/playTests.sh
-@@ -206,6 +206,8 @@
+@@ -337,14 +337,19 @@
  test ! -f tmp  # tmp should no longer be present
- $ZSTD -f -d --rm tmp.zst
+ zstd -f -d --rm tmp.zst
  test ! -f tmp.zst   # tmp.zst should no longer be present
+-println "test : should quietly not remove non-regular file"
+-println hello > tmp
+-zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
+-grep -v "Refusing to remove non-regular file" tmplog
+-rm -f tmplog
+-zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
+-println "test : --rm on stdin"
+-println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +if [ "$(dpkg-architecture -qDEB_HOST_ARCH)" != 'hurd-i386' ]
 +then
- $ECHO "test : should quietly not remove non-regular file"
- $ECHO hello > tmp
- $ZSTD tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-@@ -214,6 +216,9 @@
- $ZSTD tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
- $ECHO "test : --rm on stdin"
- $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
++    println "test : should quietly not remove non-regular file"
++    println hello > tmp
++    zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
++    grep -v "Refusing to remove non-regular file" tmplog
++    rm -f tmplog
++    zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
++    println "test : --rm on stdin"
++    println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +else
-+  $ECHO "\n**** This test on $DEBARCH fails with \"Computer bought the farm\" **** "
++   println "\n**** This test on $DEBARCH fails with \"Computer bought the farm\" **** "
 +fi
  rm tmp
- $ZSTD -f tmp && die "tmp not present : should have failed"
+ zstd -f tmp && die "tmp not present : should have failed"
  test ! -f tmp.zst  # tmp.zst should not be created

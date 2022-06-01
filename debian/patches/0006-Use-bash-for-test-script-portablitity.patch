@@ -9,8 +9,8 @@ Subject: Use bash for test script portablitity
 --- libzstd.orig/tests/playTests.sh
 +++ libzstd/tests/playTests.sh
 @@ -1,4 +1,4 @@
--#!/bin/sh -e
-+#!/bin/bash -e
+-#!/bin/sh
++#!/bin/bash
  
- die() {
-     $ECHO "$@" 1>&2
+ set -e
+ 
