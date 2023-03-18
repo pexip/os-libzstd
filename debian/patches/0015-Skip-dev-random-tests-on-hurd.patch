@@ -4,18 +4,18 @@ Description: Skip test failing on GNU/Hurd when writing on /dev/zero or
  "Computer bought the farm" and exit status 1
  See also: https://github.com/facebook/zstd/issues/1116
 From: Alex Mestiashvili <mestia@debian.org>
---- libzstd.orig/tests/playTests.sh
-+++ libzstd/tests/playTests.sh
-@@ -337,14 +337,19 @@
- test ! -f tmp  # tmp should no longer be present
- zstd -f -d --rm tmp.zst
- test ! -f tmp.zst   # tmp.zst should no longer be present
+--- a/tests/playTests.sh
++++ b/tests/playTests.sh
+@@ -410,14 +410,19 @@
+ test -f tmp2
+ zstd -q tmp tmp2 -o tmp3.zst --rm && die "should refuse to concatenate"
+ 
 -println "test : should quietly not remove non-regular file"
 -println hello > tmp
 -zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
--grep -v "Refusing to remove non-regular file" tmplog
+-grep "Refusing to remove non-regular file" tmplog && die
 -rm -f tmplog
--zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
+-zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
 -println "test : --rm on stdin"
 -println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +if [ "$(dpkg-architecture -qDEB_HOST_ARCH)" != 'hurd-i386' ]
@@ -23,14 +23,14 @@ From: Alex Mestiashvili <mestia@debian.org>
 +    println "test : should quietly not remove non-regular file"
 +    println hello > tmp
 +    zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-+    grep -v "Refusing to remove non-regular file" tmplog
++    grep "Refusing to remove non-regular file" tmplog && die
 +    rm -f tmplog
-+    zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
++    zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
 +    println "test : --rm on stdin"
 +    println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +else
-+   println "\n**** This test on $DEBARCH fails with \"Computer bought the farm\" **** "
++    println "\n**** This test on $DEBARCH fails with \"Computer bought the farm\" **** "
 +fi
- rm tmp
+ rm -f tmp
  zstd -f tmp && die "tmp not present : should have failed"
  test ! -f tmp.zst  # tmp.zst should not be created

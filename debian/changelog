@@ -1,3 +1,143 @@
+libzstd (1.5.4+dfsg2-5) unstable; urgency=medium
+
+  * Add the 0021-tests-newline patch to fix a very rarely occurring bug in
+    the test suite when it splits a program's output into lines.
+  * Add the 0022-tests-timeout patch to try once again to fix a FTBFS
+    related to the window-size test; on some platforms it can now complete,
+    but it takes more than the expected one minute to do so.
+    Closes: #1032592
+
+ -- Peter Pentchev <roam@debian.org>  Sat, 18 Mar 2023 22:58:30 +0200
+
+libzstd (1.5.4+dfsg2-4) unstable; urgency=medium
+
+  * Replace the 0019-disable-window-resize-test patch with
+    the 0019-upstream-fix-cli-tests one which should hopefully fix
+    the issues that made it necessary to skip those tests.
+  * Add the 0020-upstream-fix-block-splitter to fix a rare problem.
+  * Explicitly override the no-versioned-debhelper-prerequisite
+    Lintian tag as suggested in its description.
+
+ -- Peter Pentchev <roam@debian.org>  Wed, 08 Mar 2023 23:54:45 +0200
+
+libzstd (1.5.4+dfsg2-3) unstable; urgency=medium
+
+  * Temporary disable the window-resize CLI test until I can figure out
+    why does it seem to randomly fail on some of the Debian buildds.
+
+ -- Peter Pentchev <roam@debian.org>  Mon, 13 Feb 2023 12:56:34 +0200
+
+libzstd (1.5.4+dfsg2-2) unstable; urgency=medium
+
+  * Fix FTBFS: add python3 and less as build-time dependencies for
+    the test suite.
+
+ -- Peter Pentchev <roam@debian.org>  Mon, 13 Feb 2023 03:55:11 +0200
+
+libzstd (1.5.4+dfsg2-1) unstable; urgency=medium
+
+  * Add autopkgtests that build simple programs that link to libzstd
+    using the pkg-config and CMake build systems.
+  * New upstream release:
+    - update the upstream copyright notices
+    - drop the 0019-hurd-unused patch, integrated upstream
+    - refresh the patches
+  * Add the year 2023 to my debian/* copyright notice.
+
+ -- Peter Pentchev <roam@debian.org>  Mon, 13 Feb 2023 01:37:54 +0200
+
+libzstd (1.5.2+dfsg2-3) unstable; urgency=medium
+
+  * Add the 0019-hurd-unused patch to fix a FTBFS on the GNU Hurd:
+    silence an unused parameter warning.
+  * Fix FTCBFS: Export build tools for all targets. Closes: #1027126
+
+ -- Peter Pentchev <roam@debian.org>  Thu, 29 Dec 2022 18:08:51 +0200
+
+libzstd (1.5.2+dfsg2-2) unstable; urgency=medium
+
+  * Fix a FTBFS on i386 (and on any arch where DEB_HOST_MULTIARCH is not
+    the same as DEB_HOST_GNU_TYPE).
+  * Correctly point the debhelper cmake tools to build/cmake/ as
+    the source directory instead of passing it as a positional argument
+    that is not expected by Buildsystem::cmake.
+
+ -- Peter Pentchev <roam@debian.org>  Tue, 27 Dec 2022 22:54:45 +0200
+
+libzstd (1.5.2+dfsg2-1) unstable; urgency=medium
+
+  * Declare compliance with Policy 4.6.2 with no changes.
+  * Use the GitHub API in the watch file.
+  * Build and distribute the CMake build glue files:
+    - Closes: #1020403
+    - repack with the build/cmake/ and build/meson/ directories
+    - add an explicit "build" target to the rules file that invokes
+      `dh build` to make sure that make(1) does not mistake the existence of
+      the build/ directory for "nothing to do"
+    - run an additional `dh_auto_configure` with `--buildsystem-cmake` to
+      generate the zstdConfig*.cmake and zstdTarget*.cmake files used by
+      other projects to link against libzstd
+    - use debhelper compat level 14 for the CMake support
+    - install the CMake build glue files
+    - enable the ZSTD_LEGACY_SUPPORT CMake config option so that
+      the CMake build does not differ in behavior from the Makefile one
+  * Add Rules-Requires-Root: no to the source package stanza.
+  * Do not use d-shlibs, debhelper's tools can do the job.
+  * Use `execute_after_dh_installman` instead of overriding the full target.
+  * Improve the pzstd manual page's title ("parallelised" -> "parallelized",
+    "al la" -> "a la").
+  * Pass V=1 to `make` unless the "terse" build option is set. Closes: #1009746
+  * Fix the source licensing: BSD *or* GPL-2, not "and". Closes: #1012003
+  * Mark the zstd binary package as Multi-Arch: foreign. Closes: #1014438
+  * Support the noudeb build profile. Closes: #1024937
+
+ -- Peter Pentchev <roam@debian.org>  Tue, 27 Dec 2022 19:47:09 +0200
+
+libzstd (1.5.2+dfsg-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #1008165):
+    - refresh some patches:
+      - 0013-skip-memory-greedy-tests
+      - 0015-Skip-dev-random-tests-on-hurd
+      - 0017-alpha-fbfs-st_mtime
+      - 0018-kfreebsd-ftbfs-utime-now
+    - update the required version in the dh_makeshlibs invocation
+
+ -- Peter Pentchev <roam@debian.org>  Mon, 11 Apr 2022 17:50:14 +0300
+
+libzstd (1.4.10+dfsg-1) unstable; urgency=medium
+
+  * Point the Vcs-* fields to the pkg-rpm-team repository.
+  * New upstream release (Closes: #1008078):
+    - remove the years from the main upstream copyright notice
+    - refresh patch line numbers
+
+ -- Peter Pentchev <roam@debian.org>  Sat, 02 Apr 2022 22:44:53 +0300
+
+libzstd (1.4.9+dfsg-1) unstable; urgency=medium
+
+  * New maintainer, bring libzstd under the RPM packaging team's umbrella.
+    Many thanks to the Debian Med Team and everyone else for their work!
+  * Add my debian/* copyright notice.
+  * Catch up with a renamed Lintian tag in an override.
+  * Correct the upstream copyright years.
+  * Add a trivial git-buildpackage config file.
+  * New upstream release:
+    - update the upstream copyright years
+    - adapt the 0008-Address-embedded-zlib patch
+    - refresh patch line numbers
+  * Fix a kFreeBSD FTBFS - UTIME_NOW is not defined.
+
+ -- Peter Pentchev <roam@debian.org>  Sun, 20 Mar 2022 18:25:50 +0200
+
+libzstd (1.4.8+dfsg-3) unstable; urgency=medium
+
+  * Team upload.
+  * Fix watchfile to detect new versions on github
+  * Standards-Version: 4.6.0
+
+ -- Andreas Tille <tille@debian.org>  Wed, 06 Oct 2021 09:27:47 +0200
+
 libzstd (1.4.8+dfsg-2.1) unstable; urgency=medium
 
   * Non-maintainer upload.

@@ -1,1 +1,2 @@
-libzstd source: binary-control-field-duplicates-source field "section" in package libzstd1
+libzstd source: installable-field-mirrors-source *libzstd1*
+libzstd source: no-versioned-debhelper-prerequisite 14

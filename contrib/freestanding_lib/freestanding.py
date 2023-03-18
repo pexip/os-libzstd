@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ################################################################
-# Copyright (c) 2020-2020, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -27,6 +27,7 @@ SKIPPED_FILES = [
     "common/pool.h",
     "common/threading.c",
     "common/threading.h",
+    "common/zstd_trace.h",
     "compress/zstdmt_compress.h",
     "compress/zstdmt_compress.c",
 ]
@@ -339,7 +340,7 @@ class PartialPreprocessor(object):
 
                 if macro2 is not None and not resolved:
                     assert ifdef and defined and op == '&&' and cmp is not None
-                    # If the statment is true, but we have a single value check, then
+                    # If the statement is true, but we have a single value check, then
                     # check the value.
                     defined_value = self._defs[macro]
                     are_ints = True
@@ -430,7 +431,7 @@ class Freestanding(object):
             external_xxhash: bool, xxh64_state: Optional[str],
             xxh64_prefix: Optional[str], rewritten_includes: [(str, str)],
             defs: [(str, Optional[str])], replaces: [(str, str)],
-            undefs: [str], excludes: [str]
+            undefs: [str], excludes: [str], seds: [str], spdx: bool,
     ):
         self._zstd_deps = zstd_deps
         self._mem = mem
@@ -444,6 +445,8 @@ class Freestanding(object):
         self._replaces = replaces
         self._undefs = undefs
         self._excludes = excludes
+        self._seds = seds
+        self._spdx = spdx
 
     def _dst_lib_file_paths(self):
         """
@@ -458,7 +461,8 @@ class Freestanding(object):
         print(*args, **kwargs)
 
     def _copy_file(self, lib_path):
-        if not (lib_path.endswith(".c") or lib_path.endswith(".h")):
+        suffixes = [".c", ".h", ".S"]
+        if not any((lib_path.endswith(suffix) for suffix in suffixes)):
             return
         if lib_path in SKIPPED_FILES:
             self._log(f"\tSkipping file: {lib_path}")
@@ -471,24 +475,25 @@ class Freestanding(object):
         dst_path = os.path.join(self._dst_lib, lib_path)
         self._log(f"\tCopying: {src_path} -> {dst_path}")
         shutil.copyfile(src_path, dst_path)
-    
+
     def _copy_source_lib(self):
         self._log("Copying source library into output library")
 
         assert os.path.exists(self._src_lib)
         os.makedirs(self._dst_lib, exist_ok=True)
         self._copy_file("zstd.h")
+        self._copy_file("zstd_errors.h")
         for subdir in INCLUDED_SUBDIRS:
             src_dir = os.path.join(self._src_lib, subdir)
             dst_dir = os.path.join(self._dst_lib, subdir)
-            
+
             assert os.path.exists(src_dir)
             os.makedirs(dst_dir, exist_ok=True)
 
             for filename in os.listdir(src_dir):
                 lib_path = os.path.join(subdir, filename)
                 self._copy_file(lib_path)
-    
+
     def _copy_zstd_deps(self):
         dst_zstd_deps = os.path.join(self._dst_lib, "common", "zstd_deps.h")
         self._log(f"Copying zstd_deps: {self._zstd_deps} -> {dst_zstd_deps}")
@@ -508,7 +513,7 @@ class Freestanding(object):
         assert not (undef and value is not None)
         for filepath in self._dst_lib_file_paths():
             file = FileLines(filepath)
-    
+
     def _hardwire_defines(self):
         self._log("Hardwiring macros")
         partial_preprocessor = PartialPreprocessor(self._defs, self._replaces, self._undefs)
@@ -536,7 +541,7 @@ class Freestanding(object):
                         skipped.append(line)
                         if end_re.search(line) is not None:
                             assert begin_re.search(line) is None
-                            self._log(f"\t\tRemoving excluded section: {exclude}") 
+                            self._log(f"\t\tRemoving excluded section: {exclude}")
                             for s in skipped:
                                 self._log(f"\t\t\t- {s}")
                             emit = True
@@ -559,12 +564,12 @@ class Freestanding(object):
                 e = match.end('include')
                 file.lines[i] = line[:s] + rewritten + line[e:]
             file.write()
-    
+
     def _rewrite_includes(self):
         self._log("Rewriting includes")
         for original, rewritten in self._rewritten_includes:
             self._rewrite_include(original, rewritten)
-    
+
     def _replace_xxh64_prefix(self):
         if self._xxh64_prefix is None:
             return
@@ -576,7 +581,7 @@ class Freestanding(object):
             )
         if self._xxh64_prefix is not None:
             replacements.append(
-                (re.compile(r"([^\w]|^)(?P<orig>XXH64)_"), self._xxh64_prefix)
+                (re.compile(r"([^\w]|^)(?P<orig>XXH64)[\(_]"), self._xxh64_prefix)
             )
         for filepath in self._dst_lib_file_paths():
             file = FileLines(filepath)
@@ -596,6 +601,69 @@ class Freestanding(object):
                 file.lines[i] = line
             file.write()
 
+    def _parse_sed(self, sed):
+        assert sed[0] == 's'
+        delim = sed[1]
+        match = re.fullmatch(f's{delim}(.+){delim}(.*){delim}(.*)', sed)
+        assert match is not None
+        regex = re.compile(match.group(1))
+        format_str = match.group(2)
+        is_global = match.group(3) == 'g'
+        return regex, format_str, is_global
+
+    def _process_sed(self, sed):
+        self._log(f"Processing sed: {sed}")
+        regex, format_str, is_global = self._parse_sed(sed)
+
+        for filepath in self._dst_lib_file_paths():
+            file = FileLines(filepath)
+            for i, line in enumerate(file.lines):
+                modified = False
+                while True:
+                    match = regex.search(line)
+                    if match is None:
+                        break
+                    replacement = format_str.format(match.groups(''), match.groupdict(''))
+                    b = match.start()
+                    e = match.end()
+                    line = line[:b] + replacement + line[e:]
+                    modified = True
+                    if not is_global:
+                        break
+                if modified:
+                    self._log(f"\t- {file.lines[i][:-1]}")
+                    self._log(f"\t+ {line[:-1]}")
+                file.lines[i] = line
+            file.write()
+
+    def _process_seds(self):
+        self._log("Processing seds")
+        for sed in self._seds:
+            self._process_sed(sed)
+
+    def _process_spdx(self):
+        if not self._spdx:
+            return
+        self._log("Processing spdx")
+        SPDX_C = "// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause\n"
+        SPDX_H_S = "/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */\n"
+        for filepath in self._dst_lib_file_paths():
+            file = FileLines(filepath)
+            if file.lines[0] == SPDX_C or file.lines[0] == SPDX_H_S:
+                continue
+            for line in file.lines:
+                if "SPDX-License-Identifier" in line:
+                    raise RuntimeError(f"Unexpected SPDX license identifier: {file.filename} {repr(line)}")
+            if file.filename.endswith(".c"):
+                file.lines.insert(0, SPDX_C)
+            elif file.filename.endswith(".h") or file.filename.endswith(".S"):
+                file.lines.insert(0, SPDX_H_S)
+            else:
+                raise RuntimeError(f"Unexpected file extension: {file.filename}")
+            file.write()
+
+
+
     def go(self):
         self._copy_source_lib()
         self._copy_zstd_deps()
@@ -604,6 +672,8 @@ class Freestanding(object):
         self._remove_excludes()
         self._rewrite_includes()
         self._replace_xxh64_prefix()
+        self._process_seds()
+        self._process_spdx()
 
 
 def parse_optional_pair(defines: [str]) -> [(str, Optional[str])]:
@@ -641,8 +711,10 @@ def main(name, args):
     parser.add_argument("--xxh64-state", default=None, help="Alternate XXH64 state type (excluding _) e.g. --xxh64-state='struct xxh64_state'")
     parser.add_argument("--xxh64-prefix", default=None, help="Alternate XXH64 function prefix (excluding _) e.g. --xxh64-prefix=xxh64")
     parser.add_argument("--rewrite-include", default=[], dest="rewritten_includes", action="append", help="Rewrite an include REGEX=NEW (e.g. '<stddef\\.h>=<linux/types.h>')")
+    parser.add_argument("--sed", default=[], dest="seds", action="append", help="Apply a sed replacement. Format: `s/REGEX/FORMAT/[g]`. REGEX is a Python regex. FORMAT is a Python format string formatted by the regex dict.")
+    parser.add_argument("--spdx", action="store_true", help="Add SPDX License Identifiers")
     parser.add_argument("-D", "--define", default=[], dest="defs", action="append", help="Pre-define this macro (can be passed multiple times)")
-    parser.add_argument("-U", "--undefine", default=[], dest="undefs", action="append", help="Pre-undefine this macro (can be passed mutliple times)")
+    parser.add_argument("-U", "--undefine", default=[], dest="undefs", action="append", help="Pre-undefine this macro (can be passed multiple times)")
     parser.add_argument("-R", "--replace", default=[], dest="replaces", action="append", help="Pre-define this macro and replace the first ifndef block with its definition")
     parser.add_argument("-E", "--exclude", default=[], dest="excludes", action="append", help="Exclude all lines between 'BEGIN <EXCLUDE>' and 'END <EXCLUDE>'")
     args = parser.parse_args(args)
@@ -655,6 +727,11 @@ def main(name, args):
     for name, _ in args.defs:
         if name in args.undefs:
             raise RuntimeError(f"{name} is both defined and undefined!")
+
+    # Always set tracing to 0
+    if "ZSTD_NO_TRACE" not in (arg[0] for arg in args.defs):
+        args.defs.append(("ZSTD_NO_TRACE", None))
+        args.defs.append(("ZSTD_TRACE", "0"))
 
     args.replaces = parse_pair(args.replaces)
     for name, _ in args.replaces:
@@ -688,7 +765,9 @@ def main(name, args):
         args.defs,
         args.replaces,
         args.undefs,
-        args.excludes
+        args.excludes,
+        args.seds,
+        args.spdx,
     ).go()
 
 if __name__ == "__main__":

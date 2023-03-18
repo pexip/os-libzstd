@@ -1,8 +1,8 @@
 Subject: Skip memory heavy tests causing FTBFS on mips(el) and hurd buildds
 From: Alex Mestiashvili <mestia@debian.org>
---- libzstd.orig/tests/playTests.sh
-+++ libzstd/tests/playTests.sh
-@@ -1442,8 +1442,13 @@
+--- a/tests/playTests.sh
++++ b/tests/playTests.sh
+@@ -1757,8 +1757,13 @@
  roundTripTest -g5000000000 -P99 "1 --zstd=wlog=25"
  roundTripTest -g3700000000 -P0 "1 --zstd=strategy=6,wlog=25"   # ensure btlazy2 can survive an overflow rescale
  
@@ -18,7 +18,7 @@ From: Alex Mestiashvili <mestia@debian.org>
  
  println "\n===>   zstd long, long distance matching round-trip tests "
  roundTripTest -g270000000 "1 --single-thread --long"
-@@ -1460,9 +1465,14 @@
+@@ -1775,9 +1780,14 @@
      println "\n===>   zstdmt long round-trip tests "
      roundTripTest -g80000000 -P99 "19 -T2" " "
      roundTripTest -g5000000000 -P99 "1 -T2" " "
