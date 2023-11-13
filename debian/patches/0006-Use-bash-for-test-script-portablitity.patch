@@ -6,8 +6,8 @@ Subject: Use bash for test script portablitity
  tests/playTests.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
---- libzstd.orig/tests/playTests.sh
-+++ libzstd/tests/playTests.sh
+--- a/tests/playTests.sh
++++ b/tests/playTests.sh
 @@ -1,4 +1,4 @@
 -#!/bin/sh
 +#!/bin/bash

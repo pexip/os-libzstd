@@ -1,9 +1,12 @@
 #!/usr/bin/make -f
 
+# Export build tools for all targets to avoid build hash changes.
+DPKG_EXPORT_BUILDTOOLS=1
+include /usr/share/dpkg/buildtools.mk
+
 export DH_VERBOSE=1
 
-DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
-DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+arch ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_BUILD_MAINT_OPTIONS=hardening=+all
 
 # Upstream's makefiles will respect PREFIX, and this means we avoid a patch
@@ -12,40 +15,59 @@ export PREFIX=/usr
 HELP2MAN = help2man --no-info --help-option="'-h'" --no-discard-stderr
 mandir := $(CURDIR)/debian/zstd/usr/share/man/man1
 
-%:
-	dh $@
+DH_AUTO_CONFIGURE_OPTS := \
+	-DCMAKE_LIBRARY_ARCHITECTURE=${arch} \
+	-DZSTD_LEGACY_SUPPORT:BOOL=ON \
 
-DH_AUTO_CONFIGURE_OPTS :=
 ifneq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	DH_AUTO_CONFIGURE_OPTS += -DZSTD_BUILD_TESTS:BOOL=OFF
+	DH_AUTO_CONFIGURE_OPTS += -DBUILD_TESTING:BOOL=OFF
+else
+	DH_AUTO_CONFIGURE_OPTS += -DBUILD_TESTING:BOOL=ON
 endif
 
-override_dh_auto_clean:
-	dh_auto_clean
-	dh_auto_clean --sourcedirectory=contrib/pzstd
+ifeq (,$(filter terse,$(DEB_BUILD_OPTIONS)))
+# Verbose output for the default 'make' build system
+export V=1
+endif
 
-override_dh_auto_build:
-	dh_auto_build
-	dh_auto_build --sourcedirectory=lib -- all libzstd.pc libzstd
-	dh_auto_build --sourcedirectory=contrib/pzstd/ -- pzstd
+%:
+	dh '$@'
 
-override_dh_install:
-	# Call d-shlibmove to comply with library packaging guide
-	d-shlibmove --commit \
-				--multiarch \
-				--devunversioned \
-				--exclude-la \
-				--movedev "debian/tmp/usr/include/*" usr/include \
-				--movedev "debian/tmp/usr/lib/pkgconfig/*" usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig \
-				debian/tmp/usr/lib/lib*.so
+execute_after_dh_auto_clean:
+	dh_auto_clean -D contrib/pzstd
+	dh_auto_clean -D doc/educational_decoder
+	dh_auto_clean \
+		--buildsystem=cmake \
+		--sourcedir=$(CURDIR)/build/cmake
+
+execute_after_dh_auto_configure:
+	dh_auto_configure \
+		--buildsystem=cmake \
+		--sourcedir=$(CURDIR)/build/cmake \
+		-- \
+		$(DH_CMAKE_CONFIGURE_OPTS)
+
+execute_after_dh_auto_build:
+	dh_auto_build -D contrib/pzstd
+
+override_dh_auto_install:
+	dh_auto_install -- libdir=/usr/lib/$(arch)
+	dh_auto_install -D contrib/pzstd
+
+ifeq (,$(filter noudeb,$(DEB_BUILD_PROFILES)))
+execute_after_dh_install:
 	cp -r debian/libzstd1/usr debian/libzstd1-udeb/
-	dh_install
+endif
 
 override_dh_makeshlibs:
-	dh_makeshlibs -plibzstd1 -V'libzstd1 (>= 1.4.0)' --add-udeb=libzstd1-udeb
+	dh_makeshlibs -plibzstd1 -V'libzstd1 (>= 1.5.2)' --add-udeb=libzstd1-udeb
 
-override_dh_installman:
-	dh_installman
+execute_after_dh_installman:
 	cp $(mandir)/zstd.1 $(mandir)/zstdmt.1
-	$(HELP2MAN) --name='parallelised Zstandard compression, al la pigz' contrib/pzstd/pzstd \
+	$(HELP2MAN) --name='parallelized Zstandard compression, a la pigz' contrib/pzstd/pzstd \
 	| perl -pe 's/(\(de\)compression\s\(default:)(\d+)(\))/$$1 All$$3/g' >$(mandir)/pzstd.1
+
+build:
+	dh $@
+
+.PHONY: build

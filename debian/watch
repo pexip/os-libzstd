@@ -1,4 +1,4 @@
 version=4
 
-opts="repacksuffix=+dfsg,dversionmangle=s/\+dfsg\d*//g,repack,compression=xz" \
-  https://github.com/facebook/zstd/releases .*/archive/v?@ANY_VERSION@@ARCHIVE_EXT@
+opts="searchmode=plain,repacksuffix=+dfsg2,dversionmangle=s/\+dfsg\d*//g,repack,compression=xz" \
+  https://api.github.com/repos/facebook/zstd/releases https://github.com/[^"']*/zstd-@ANY_VERSION@@ARCHIVE_EXT@

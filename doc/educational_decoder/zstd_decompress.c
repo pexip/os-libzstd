@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -1890,7 +1890,7 @@ static size_t HUF_decompress_4stream(const HUF_dtable *const dtable,
 
 /// Initializes a Huffman table using canonical Huffman codes
 /// For more explanation on canonical Huffman codes see
-/// http://www.cs.uofs.edu/~mccloske/courses/cmps340/huff_canonical_dec2015.html
+/// https://www.cs.scranton.edu/~mccloske/courses/cmps340/huff_canonical_dec2015.html
 /// Codes within a level are allocated in symbol order (i.e. smaller symbols get
 /// earlier codes)
 static void HUF_init_dtable(HUF_dtable *const table, const u8 *const bits,
@@ -2145,7 +2145,7 @@ static void FSE_init_dtable(FSE_dtable *const dtable,
 
     // "All remaining symbols are sorted in their natural order. Starting from
     // symbol 0 and table position 0, each symbol gets attributed as many cells
-    // as its probability. Cell allocation is spreaded, not linear."
+    // as its probability. Cell allocation is spread, not linear."
     // Place the rest in the table
     const u16 step = (size >> 1) + (size >> 3) + 3;
     const u16 mask = size - 1;
