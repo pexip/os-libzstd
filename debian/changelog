@@ -1,3 +1,9 @@
+libzstd (1.5.4+dfsg2-5+pexip24u3) pexip-bookworm; urgency=medium
+
+  * New versioning scheme
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Thu, 01 Feb 2024 16:09:15 +0000
+
 libzstd (1.5.4+dfsg2-5pexip2) pexip-bookworm; urgency=medium
 
   * Bookworm build for product distribution
