@@ -462,7 +462,7 @@ jobs:
     steps:
     - run: git config --global core.autocrlf input
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-    - uses: cygwin/cygwin-install-action@f5e0f048310c425e84bc789f493a828c6dc80a25 # tag=master
+    - uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # tag=master
       with:
         platform: x86_64
         packages: >-
