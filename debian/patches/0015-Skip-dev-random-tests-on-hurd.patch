@@ -6,16 +6,16 @@ Description: Skip test failing on GNU/Hurd when writing on /dev/zero or
 From: Alex Mestiashvili <mestia@debian.org>
 --- a/tests/playTests.sh
 +++ b/tests/playTests.sh
-@@ -410,14 +410,19 @@
+@@ -494,14 +494,19 @@
+ zstd -v --rm tmp2 -o tmp2.zst -c > tmp3.zst
  test -f tmp2
- zstd -q tmp tmp2 -o tmp3.zst --rm && die "should refuse to concatenate"
- 
+ test -f tmp3.zst
 -println "test : should quietly not remove non-regular file"
 -println hello > tmp
 -zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
--grep "Refusing to remove non-regular file" tmplog && die
+-$GREP "Refusing to remove non-regular file" tmplog && die
 -rm -f tmplog
--zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
+-zstd tmp -f -o "$INTOVOID" 2>&1 | $GREP "Refusing to remove non-regular file" && die
 -println "test : --rm on stdin"
 -println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +if [ "$(dpkg-architecture -qDEB_HOST_ARCH)" != 'hurd-i386' ]
@@ -23,9 +23,9 @@ From: Alex Mestiashvili <mestia@debian.org>
 +    println "test : should quietly not remove non-regular file"
 +    println hello > tmp
 +    zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-+    grep "Refusing to remove non-regular file" tmplog && die
++    $GREP "Refusing to remove non-regular file" tmplog && die
 +    rm -f tmplog
-+    zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
++    zstd tmp -f -o "$INTOVOID" 2>&1 | $GREP "Refusing to remove non-regular file" && die
 +    println "test : --rm on stdin"
 +    println a | zstd --rm > $INTOVOID   # --rm should remain silent
 +else

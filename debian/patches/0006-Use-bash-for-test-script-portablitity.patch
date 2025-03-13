@@ -12,5 +12,5 @@ Subject: Use bash for test script portablitity
 -#!/bin/sh
 +#!/bin/bash
  
- set -e
- 
+ set -e # exit immediately on error
+ # set -x # print commands before execution (debug)

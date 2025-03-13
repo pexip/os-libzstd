@@ -1,28 +1,33 @@
 Source: libzstd
 Maintainer: RPM packaging team <team+pkg-rpm@tracker.debian.org>
-Uploaders: Peter Pentchev <roam@debian.org>
+Uploaders:
+ Peter Pentchev <roam@debian.org>,
 Section: libs
 Priority: optional
-Build-Depends: cmake,
-               debhelper (>> 13.3.2~),
-               help2man,
-               liblz4-dev,
-               liblzma-dev,
-               zlib1g-dev,
-               less <!nocheck>,
-               python3 <!nocheck>,
-Standards-Version: 4.6.2
+Build-Depends:
+ debhelper (>> 13.15.2~),
+ dh-package-notes,
+ dpkg-build-api (= 1),
+ cmake (>= 3.24~),
+ help2man,
+ less <!nocheck>,
+ liblz4-dev,
+ liblzma-dev,
+ python3 <!nocheck>,
+ zlib1g-dev,
+X-DH-Compat: 14
+Standards-Version: 4.7.1
 Vcs-Browser: https://salsa.debian.org/pkg-rpm-team/libzstd
 Vcs-Git: https://salsa.debian.org/pkg-rpm-team/libzstd.git
 Homepage: https://github.com/facebook/zstd
-Rules-Requires-Root: no
+X-Style: black
 
 Package: libzstd-dev
 Architecture: any
 Multi-Arch: same
 Section: libdevel
-Depends: libzstd1 (= ${binary:Version}),
-         ${misc:Depends}
+Depends:
+ libzstd1 (= ${binary:Version}),
 Description: fast lossless compression algorithm -- development files
  Zstd, short for Zstandard, is a fast lossless compression algorithm, targeting
  real-time compression scenarios at zlib-level compression ratio.
@@ -33,8 +38,6 @@ Package: libzstd1
 Architecture: any
 Multi-Arch: same
 Section: libs
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
 Description: fast lossless compression algorithm
  Zstd, short for Zstandard, is a fast lossless compression algorithm, targeting
  real-time compression scenarios at zlib-level compression ratio.
@@ -45,8 +48,6 @@ Package: zstd
 Architecture: any
 Multi-Arch: foreign
 Section: utils
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
 Description: fast lossless compression algorithm -- CLI tool
  Zstd, short for Zstandard, is a fast lossless compression algorithm, targeting
  real-time compression scenarios at zlib-level compression ratio.
@@ -56,8 +57,6 @@ Description: fast lossless compression algorithm -- CLI tool
 Package: libzstd1-udeb
 Architecture: any
 Section: debian-installer
-Depends: ${misc:Depends},
-         ${shlibs:Depends}
 Package-Type: udeb
 Build-Profiles: <!noudeb>
 Description: fast lossless compression algorithm library for debian-installer
