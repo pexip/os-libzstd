@@ -1,43 +1,89 @@
-# Copyright (c) Peter Pentchev <roam@ringlet.net>
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# SPDX-FileCopyrightText: Peter Pentchev <roam@ringlet.net>
+# SPDX-License-Identifier: BSD-2-Clause
 """Build and test a single program."""
 
 from __future__ import annotations
 
+import dataclasses
+import os
 import pathlib
 import shlex
 import shutil
 import subprocess
 import tempfile
-
 from typing import Final
 
 from check_build import defs
 
 
+@dataclasses.dataclass
 class ProcessError(defs.CBuildError):
     """An error that occurred during the build and test process."""
+
+
+@dataclasses.dataclass
+class RunError(ProcessError):
+    """Could not run a program for a build stage."""
+
+    tag: str
+    """The stage at which a program failed."""
+
+    cmdstr: str
+    """The command we attempted to run."""
+
+    cwd: pathlib.Path
+    """The directory we attempted to run the program in."""
+
+    err: Exception
+    """The error that occurred while running the program."""
+
+    def __str__(self) -> str:
+        """Provide a human-readable description of the error."""
+        return (
+            f"A {self.tag} command failed: could not run `{self.cmdstr}` in {self.cwd}: {self.err}"
+        )
+
+
+@dataclasses.dataclass
+class NoProgramError(ProcessError):
+    """A program was not defined in the configuration."""
+
+    prog: str
+    """The program we expected to be able to be build."""
+
+    def __str__(self) -> str:
+        """Provide a human-readable description of the error."""
+        return f"No {self.prog!r} program defined in the configuration"
+
+
+@dataclasses.dataclass
+class CopyError(ProcessError):
+    """Could not copy a source directory to a temporary one."""
+
+    origdir: pathlib.Path
+    """The original directory in the source tree."""
+
+    srcdir: pathlib.Path
+    """The temporary directory to build and run the program in."""
+
+    err: Exception
+    """The error that occurred while running the program."""
+
+    def __str__(self) -> str:
+        """Provide a human-readable description of the error."""
+        return f"Could not copy {self.origdir} to the temporary {self.srcdir}: {self.err}"
+
+
+@dataclasses.dataclass
+class NotSourceError(ProcessError):
+    """The expected directory does not contain our configuration files."""
+
+    origdir: pathlib.Path
+    """The directory that was not as expected."""
+
+    def __str__(self) -> str:
+        """Provide a human-readable description of the error."""
+        return f"Not a source directory: {self.origdir}"
 
 
 def _run_commands(
@@ -48,22 +94,69 @@ def _run_commands(
         cmdstr = shlex.join(cmd)
         cfg.log.debug("- running `%(cmdstr)s`", {"cmdstr": cmdstr})
         try:
-            subprocess.run(cmd, check=True, cwd=cwd, shell=False)
+            subprocess.run(cmd, check=True, cwd=cwd, shell=False)  # noqa: S603
         except (OSError, subprocess.CalledProcessError) as err:
-            raise ProcessError(
-                f"A {tag} command failed: could not run `{cmdstr}` in {cwd}: {err}"
-            ) from err
+            raise RunError(tag, cmdstr, cwd, err) from err
+
+
+def _prereqs_programs_ok(
+    cfg: defs.Config, prereqs: defs.Prerequisites, srcdir: pathlib.Path
+) -> bool:
+    """If any programs have been specified as prerequisites, look for them in the search path."""
+    programs: Final = prereqs.programs
+    if not programs:
+        return True
+
+    def _check_prog(cmd: str) -> bool:
+        """Check for the presence of a single program."""
+        prog_path: Final = pathlib.Path(cmd)
+        if len(prog_path.parts) != 1 or prog_path.is_absolute():
+            target: Final = srcdir / prog_path
+            if not os.access(target, os.F_OK | os.X_OK):
+                cfg.log.info(
+                    "- the %(target)s prerequisite program is not present",
+                    {"target": shlex.quote(str(target))},
+                )
+                return False
+
+            return True
+
+        if shutil.which(cmd) is None:
+            cfg.log.info(
+                "- the %(cmd)s prerequisite external program is not present",
+                {"cmd": shlex.quote(cmd)},
+            )
+            return False
+
+        return True
+
+    cfg.log.info("Checking for programs present: %(progs)s", {"progs": shlex.join(programs)})
+    return all(_check_prog(prog) for prog in programs)
+
+
+def _prereqs_ok(cfg: defs.Config, prog: str, progdef: defs.Program, srcdir: pathlib.Path) -> bool:
+    """If any prerequisites have been specified, check whether they are present."""
+    prereqs: Final = progdef.prerequisites
+    if prereqs is None:
+        return True
+
+    cfg.log.info("Checking for the prerequisites of %(prog)s", {"prog": prog})
+
+    if not _prereqs_programs_ok(cfg, prereqs, srcdir):
+        return False
+
+    return True
 
 
 def build_and_test(cfg: defs.Config, prog: str) -> None:
     """Build and test a single program in a temporary directory."""
     progdef: Final = cfg.program.get(prog)
     if progdef is None:
-        raise ProcessError(f"No {prog!r} program defined in the configuration")
+        raise NoProgramError(prog)
 
     origdir: Final = cfg.topdir / prog
     if not origdir.is_dir():
-        raise ProcessError(f"Not a source directory: {origdir}")
+        raise NotSourceError(origdir)
 
     with tempfile.TemporaryDirectory(prefix="check-build.") as tempd_obj:
         tempd: Final = pathlib.Path(tempd_obj)
@@ -75,9 +168,14 @@ def build_and_test(cfg: defs.Config, prog: str) -> None:
         try:
             shutil.copytree(origdir, srcdir, symlinks=True)
         except OSError as err:
-            raise ProcessError(
-                f"Could not copy {origdir} to the temporary {srcdir}: {err}"
-            ) from err
+            raise CopyError(origdir, srcdir, err) from err
+
+        if not _prereqs_ok(cfg, prog, progdef, srcdir):
+            if not cfg.force:
+                cfg.log.info("SKIPPING %(prog)s, prerequisites not satisfied", {"prog": prog})
+                raise defs.SkippedProgramError(prog)
+
+            cfg.log.info("NOT SKIPPING %(prog)s despite unsatisfied prerequisites", {"prog": prog})
 
         cfg.log.info("Building %(prog)s in %(srcdir)s", {"prog": prog, "srcdir": srcdir})
         _run_commands(cfg, "build", progdef.commands.build, cwd=srcdir)

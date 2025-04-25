@@ -1,12 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Zstd
 Source: https://github.com/facebook/zstd
-Files-Excluded: appveyor.yml
-                build/VS2008
+Files-Excluded: build/VS2008
                 build/VS2010
                 build/VS_scripts
                 programs/windres/*
-                .travis.yml
                 .buckversion
                 .buckconfig
                 .circleci/*
@@ -58,7 +56,7 @@ License: BSD-3-clause or GPL-2
 Files: debian/*
 Copyright:
  2015-2016 Kevin Murray <spam@kdmurray.id.au>
- 2022-2023 Peter Pentchev <roam@debian.org>
+ 2022-2025 Peter Pentchev <roam@debian.org>
 License: Expat
 
 License: Expat

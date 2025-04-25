@@ -1,2 +1,17 @@
 libzstd source: installable-field-mirrors-source *libzstd1*
-libzstd source: no-versioned-debhelper-prerequisite 14
+
+# We use X-DH-Compat: 14
+#
+libzstd source: debhelper-compat-file-is-missing
+libzstd source: package-uses-deprecated-debhelper-compat-version 1
+
+# The "default" dependencies are added automatically by debhelper
+# in compat level 14.
+#
+libzstd source: debhelper-but-no-misc-depends libzstd-dev
+libzstd source: debhelper-but-no-misc-depends libzstd1
+libzstd source: debhelper-but-no-misc-depends zstd
+
+# Once again related to the fact that Lintian cannot tell we use
+# debhelper compat level 14...
+libzstd source: package-file-is-executable *debian/libzstd1-udeb.install*
