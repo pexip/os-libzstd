@@ -1,3 +1,9 @@
+libzstd (1.5.7+dfsg-1+pexip25u1) pexip-trixie; urgency=medium
+
+  * Initial trixie build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Tue, 29 Apr 2025 22:38:54 +0100
+
 libzstd (1.5.7+dfsg-1) unstable; urgency=medium
 
   * Use debputy's X-Style: black.
