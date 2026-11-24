@@ -1,3 +1,9 @@
+libzstd (1.5.7+dfsg-1+deb13u1) trixie-security; urgency=medium
+
+  * CVE-2026-124851
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Tue, 24 Nov 2026 18:43:52 +0100
+
 libzstd (1.5.7+dfsg-1) unstable; urgency=medium
 
   * Use debputy's X-Style: black.
