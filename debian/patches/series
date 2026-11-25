@@ -8,3 +8,4 @@
 0022-tests-timeout.patch
 0023-cmake-min-3.13.patch
 0024-no-lessopen-test.patch
+CVE-2026-124851.patch
